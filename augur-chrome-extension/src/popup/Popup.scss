@@ -1,0 +1,19 @@
+$primary-color: rgb(255, 255, 255);
+$background-color: hsl(202, 69%, 60%);
+
+// Chrome applies an 8px margin by default (gross).
+body {
+  margin: 0px;
+}
+
+.popupContainer {
+  background-color: $background-color;
+  border: 2px solid $primary-color;
+  color: $primary-color;
+  display: block;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 500;
+  height: 300px;
+  width: 300px;
+}

@@ -1,0 +1,3 @@
+dist/js
+**/firebase
+node_modules

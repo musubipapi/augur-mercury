@@ -1,2 +1,7 @@
 **/node_modules
 augur-295507-5501cfde0ce2.**
+firebase.**
+firestore.**
+.firebaserc
+**.log
+

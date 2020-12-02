@@ -32,6 +32,6 @@
     "128": "images/image128.png"
   },
 
-  "permissions": [],
+  "permissions": ["https://us-central1-augur-8e52d.cloudfunctions.net/*"],
   "content_security_policy": "script-src 'self' https://apis.google.com https://www.gstatic.com/ https://*.firebaseio.com https://www.googleapis.com; object-src 'self'"
 }

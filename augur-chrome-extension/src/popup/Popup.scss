@@ -1,19 +1,35 @@
-$primary-color: rgb(255, 255, 255);
-$background-color: hsl(202, 69%, 60%);
+@import "~normalize.css";
+@import "~@blueprintjs/core/lib/css/blueprint.css";
+@import "~@blueprintjs/icons/lib/css/blueprint-icons.css";
+@import "~@blueprintjs/core/lib/scss/variables";
 
+$primary-color: rgb(255, 255, 255);
+$background-color: #182026;
 // Chrome applies an 8px margin by default (gross).
 body {
   margin: 0px;
 }
 
+.button-margin {
+  margin-top: 11px;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+}
+.container-pad {
+  margin-top: 4px;
+  margin-left: 9px;
+  margin-right: 9px;
+}
 .popupContainer {
   background-color: $background-color;
   border: 2px solid $primary-color;
-  color: $primary-color;
-  display: block;
-  text-align: center;
-  font-size: 20px;
-  font-weight: 500;
-  height: 300px;
+  color: $white;
+  height: 400px;
   width: 300px;
+}
+.fill > span {
+  width: 100%;
 }

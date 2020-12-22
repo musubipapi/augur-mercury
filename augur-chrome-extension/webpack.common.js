@@ -3,7 +3,8 @@ const path = require("path");
 module.exports = {
   entry: {
     popup: path.join(__dirname, "src/popup/index.tsx"),
-    eventPage: path.join(__dirname, "src/eventPage.ts"),
+    mainEvent: path.join(__dirname, "src/events/mainEvent.ts"),
+    auth: path.join(__dirname, "src/events/auth.ts"),
     content: path.join(__dirname, "src/content.ts"),
   },
   output: {
@@ -18,8 +19,28 @@ module.exports = {
         use: "ts-loader",
       },
       {
+        test: /\.(ttf|eot|svg)$/,
+        use: {
+          loader: "file-loader",
+          options: {
+            name: "fonts/[hash].[ext]",
+          },
+        },
+      },
+      {
+        test: /\.(woff|woff2)$/,
+        use: {
+          loader: "url-loader",
+          options: {
+            name: "fonts/[hash].[ext]",
+            limit: 5000,
+            mimetype: "application/font-woff",
+          },
+        },
+      },
+      {
         exclude: /node_modules/,
-        test: /\.scss$/,
+        test: /\.(scss|css)$/,
         use: [
           {
             loader: "style-loader", // Creates style nodes from JS strings

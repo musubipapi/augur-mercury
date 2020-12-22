@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-
 import { Login } from "./components/Login";
 import "./Popup.scss";
 
@@ -11,10 +10,7 @@ export default function Popup() {
 
   return (
     <div className="popupContainer">
-      Augur
-      <div>
-        <Login />
-      </div>
+      <Login />
     </div>
   );
 }

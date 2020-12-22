@@ -1,9 +1,10 @@
 {
   "manifest_version": 2,
 
-  "name": "Augur",
+  "name": "Mercury",
   "description": "Send Tweets from Roam",
-  "version": "1.0.0",
+  "version": "0.0.2",
+  "web_accessible_resources": ["*.svg"],
   "content_scripts": [
     {
       "matches": ["https://roamresearch.com/*"],
@@ -16,12 +17,12 @@
       "24": "images/image24.png",
       "32": "images/image32.png"
     },
-    "default_title": "Augur",
+    "default_title": "Mercury",
     "default_popup": "popup.html"
   },
 
   "background": {
-    "scripts": ["js/eventPage.js"],
+    "scripts": ["js/mainEvent.js", "js/auth.js"],
     "persistent": false
   },
 
@@ -32,6 +33,6 @@
     "128": "images/image128.png"
   },
 
-  "permissions": ["https://us-central1-augur-8e52d.cloudfunctions.net/*"],
+  "permissions": ["storage"],
   "content_security_policy": "script-src 'self' https://apis.google.com https://www.gstatic.com/ https://*.firebaseio.com https://www.googleapis.com; object-src 'self'"
 }

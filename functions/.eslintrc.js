@@ -14,10 +14,7 @@ module.exports = {
     project: "tsconfig.json",
     sourceType: "module",
   },
-  plugins: [
-    "@typescript-eslint",
-    "import",
-  ],
+  plugins: ["@typescript-eslint", "import"],
   rules: {
     "@typescript-eslint/adjacent-overload-signatures": "error",
     "@typescript-eslint/no-empty-function": "error",
@@ -45,7 +42,7 @@ module.exports = {
     ],
     "no-invalid-this": "error",
     "no-new-wrappers": "error",
-    "no-param-reassign": "error",
+    "no-param-reassign": 0,
     "no-redeclare": "error",
     "no-sequences": "error",
     "no-shadow": [

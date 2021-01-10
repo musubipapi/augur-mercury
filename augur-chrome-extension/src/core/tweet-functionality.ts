@@ -1,13 +1,21 @@
 import twitter from "twitter-text";
 import { Position, Toaster } from "@blueprintjs/core";
-
 import {
   createSideButton,
   asyncPaste,
   waitForString,
   newBlockEnter,
 } from "./dom";
-import { roamAPIQuery, selectLastChildBlock } from "./roam";
+
+import {
+  getRecursiveChildrenBlocks,
+  roamAPIQuery,
+  selectBlock,
+  selectLastChildBlock,
+} from "./roam";
+import { TweetReturnString } from "../types/index";
+import { templateEngine } from "./template-engine";
+import Axios from "axios";
 
 /**
  *
@@ -88,30 +96,120 @@ const createCharCountElement = (chars: number) => {
   return charCounter;
 };
 
+const toDataURL = (url) =>
+  fetch(url)
+    .then((response) => response.blob())
+    .then(
+      (blob) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+          console.log("POOp");
+        })
+    );
+
+const createBase64Img = async (
+  blockDataObj: {
+    string: string;
+    mediaObj: {
+      alt: string;
+      dataURL: string;
+    }[];
+  }[]
+) => {
+  const returnData = await Promise.all(
+    blockDataObj.map(async (obj) => {
+      if (obj.mediaObj.length !== 0) {
+        const results = await Promise.all(
+          obj.mediaObj.map(async (item) => {
+            const proxyURL = `https://blooming-brook-29146.herokuapp.com/`;
+            const dataURL = (await toDataURL(
+              proxyURL + item.dataURL
+            )) as string;
+            return { alt: item.alt, dataURL: dataURL.split(",")[1] };
+          })
+        );
+        return { string: obj.string, mediaObj: results };
+      }
+      return { string: obj.string, mediaObj: obj.mediaObj };
+    })
+  );
+  return returnData;
+};
+
+const getTweetReturn: () => Promise<string> = async () => {
+  return await new Promise((resolve, reject) => {
+    chrome.storage.sync.get(["tweetReturn"], (result) => {
+      if (!result.tweetReturn) {
+        resolve("firstTweet");
+      } else {
+        if (result.tweetReturn === TweetReturnString.every) {
+          resolve("everyTweet");
+        } else if (result.tweetReturn === TweetReturnString.last) {
+          resolve("lastTweet");
+        } else {
+          resolve("firstTweet");
+        }
+      }
+    });
+  });
+};
+
+const getTweetTemplate: () => Promise<string> = async () => {
+  return await new Promise((resolve, reject) => {
+    chrome.storage.sync.get(["tweetTemplateString"], (result) => {
+      resolve(result.tweetTemplateString as string);
+    });
+  });
+};
+
 const getAndSendTwitterData = async (block_uid: string) => {
   const timeout = 3000;
   let timerId = setTimeout(async () => {
     try {
       const tweetBlock = await roamAPIQuery(
-        `[:find (pull ?e [* {:block/children [*]}]) :where [?e :block/uid "${block_uid}"] ]`
-      );
-      const parentString = tweetBlock.string.match(
-        /https:\/\/twitter.com\/.+\/status\/(\d+)/
-      );
-      const childrenStrings = tweetBlock.children.sort(
-        (a: { order: number }, b: { order: number }) =>
-          a.order < b.order ? -1 : 1
+        `[:find  (pull ?e [:block/order :block/string :block/uid {:block/children ...} ]) :in $ ?desiredId :where [?e :block/uid ?desiredId]]`,
+        block_uid
       );
 
-      const childrenStringsText = childrenStrings.map(
-        (tweetObject: { uid: any }) =>
-          document.querySelector(`[id*="${tweetObject.uid}"]`).textContent
+      const parentString = Array.from(
+        tweetBlock.string.matchAll(
+          /https:\/\/twitter.com\/.*?\/status\/(\d+)/gm
+        )
       );
-      const data = JSON.stringify({
-        ...(parentString && { start: parentString[1] }),
-        tweets: childrenStringsText,
+
+      const isSecond =
+        tweetBlock.string.match(/#secondLink/) && parentString.length > 1
+          ? 1
+          : 0;
+
+      const childrenStrings = await getRecursiveChildrenBlocks(block_uid);
+
+      const blockDataObj = childrenStrings.map((uid) => {
+        const mediaObj = Array.from(
+          document
+            .querySelector(`[id*="${uid}"]`)
+            .querySelectorAll(".rm-inline-img")
+        ).map((document: HTMLImageElement) => {
+          return { alt: document.alt, dataURL: document.src };
+        });
+
+        return {
+          string: document.querySelector(`[id*="${uid}"]`).textContent,
+          mediaObj,
+        };
       });
 
+      const tweets = await createBase64Img(blockDataObj);
+      const tweetSetting = await getTweetReturn();
+      const tweetTemplate = await getTweetTemplate();
+      const data = JSON.stringify({
+        ...(parentString.length !== 0 && { start: parentString[isSecond][1] }),
+        tweetSetting,
+        tweets,
+      });
       chrome.runtime.sendMessage(
         { message: "sendTwitterData", data },
         async (response) => {
@@ -129,12 +227,40 @@ const getAndSendTwitterData = async (block_uid: string) => {
             });
             chrome.storage.sync.get(["hideSentTweet"], async (result) => {
               if (!result.hideSentTweet) {
-                const lastBlock = await selectLastChildBlock(block_uid);
-                if (lastBlock.value.trim().length !== 0) {
-                  newBlockEnter();
+                if (tweetSetting !== "everyTweet") {
+                  const lastBlock = await selectLastChildBlock(block_uid);
+                  if (lastBlock.value.trim().length !== 0) {
+                    newBlockEnter();
+                  }
+                  await waitForString("");
+                  const templatedString = templateEngine(
+                    tweetTemplate,
+                    {
+                      url: response.returnTweet[0],
+                    },
+                    /<%([^%>]+)?%>/g
+                  );
+                  await asyncPaste(`${templatedString}`);
+                } else {
+                  const childrenBlocks: any[] = await getRecursiveChildrenBlocks(
+                    block_uid
+                  );
+                  for (let i = 0; i < childrenBlocks.length; i++) {
+                    const templatedString = templateEngine(
+                      tweetTemplate,
+                      {
+                        url: response.returnTweet[i],
+                      },
+                      /<%([^%>]+)?%>/g
+                    );
+                    await selectBlock(childrenBlocks[i]);
+                    await waitForString(
+                      document.querySelector(`[id*="${childrenBlocks[i]}"]`)
+                        .textContent
+                    );
+                    await asyncPaste(templatedString);
+                  }
                 }
-                await waitForString("");
-                await asyncPaste(`Tweet: ${response.returnTweet}`);
               }
             });
           } else if (response.message === "error") {
@@ -144,7 +270,9 @@ const getAndSendTwitterData = async (block_uid: string) => {
               className: "recipe-toaster",
               position: Position.TOP,
             }).show({
-              message: "Error posting tweet",
+              message: response.payload
+                ? `${response.payload}`
+                : `Error posting tweet`,
               intent: "danger",
               timeout,
             });

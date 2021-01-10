@@ -1,29 +1,43 @@
 import axios from "axios";
-import { CLOUD_FUNCTION_URL, auth, provider } from "../firebase/firebaseConfig";
+import {
+  CLOUD_FUNCTION_URL,
+  auth,
+  provider,
+  db,
+} from "../firebase/firebaseConfig";
 
 const SendLoginToFirestore = async (
   authResult: firebase.auth.UserCredential
 ) => {
   const token = await auth.currentUser.getIdToken();
-  const { isNewUser } = authResult.additionalUserInfo;
+  const { isNewUser, username } = authResult.additionalUserInfo;
   //@ts-ignore
   const { accessToken, secret } = authResult.credential;
   if (isNewUser) {
-    axios({
-      method: "post",
-      url: `${CLOUD_FUNCTION_URL}/api/newUser`,
-      data: {
-        accessToken,
-        secret,
-      },
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    }).catch((e) => {
+    try {
+      await axios({
+        method: "post",
+        url: `${CLOUD_FUNCTION_URL}/api/newUser`,
+        data: {
+          accessToken,
+          secret,
+          username,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (e) {
       throw new Error(e);
-    });
+    }
   }
+  const user_info = (
+    await db.collection("users").doc(auth.currentUser.uid).get()
+  ).data();
+  chrome.storage.sync.set({
+    user_info,
+  });
 };
 
 const SendBlocksToTwitter = async (data: string) => {
@@ -31,28 +45,33 @@ const SendBlocksToTwitter = async (data: string) => {
   try {
     const response = await axios({
       method: "post",
-      url: `${CLOUD_FUNCTION_URL}/api/sendTweet`,
+      url: `${CLOUD_FUNCTION_URL}/api/v2/sendTweet`,
       data,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
-    return response;
+    return { response, isSuccess: true };
   } catch (err) {
+    if (err.response) {
+      console.log(err.response.data);
+      return { response: err.response.data?.message, isSuccess: false };
+    }
     throw new Error(err);
   }
 };
-
 const authListener = async (request: any, _sender, sendResponse: any) => {
   if (request.message === "sign_in") {
     try {
       const result = await auth.signInWithPopup(provider);
-      SendLoginToFirestore(result);
-      sendResponse({ message: "success" });
+
+      await SendLoginToFirestore(result);
+
       chrome.storage.sync.set({ logged_in: true });
+      sendResponse({ message: "success" });
     } catch (err) {
-      sendResponse({ message: "error" });
+      sendResponse({ message: "error", payload: err });
     }
   }
 
@@ -61,6 +80,7 @@ const authListener = async (request: any, _sender, sendResponse: any) => {
       await auth.signOut();
       sendResponse({ message: "success" });
       chrome.storage.sync.set({ logged_in: false });
+      chrome.storage.sync.set({ user_info: false });
     } catch (err) {
       sendResponse({ message: "error" });
     }
@@ -76,6 +96,21 @@ const authListener = async (request: any, _sender, sendResponse: any) => {
       sendResponse({ message: "error" });
     }
   }
+
+  if (request.message === "get_user_info") {
+    try {
+      chrome.storage.sync.get(["user_info"], async (result) => {
+        if (!result.user_info) {
+        } else {
+          sendResponse({ payload: result.user_info });
+        }
+      });
+    } catch (err) {
+      console.log(err.response);
+      sendResponse({ message: "error" });
+    }
+  }
+
   return true;
 };
 
@@ -86,12 +121,19 @@ const cloudFunctionListener = async (
 ) => {
   if (request.message === "sendTwitterData") {
     try {
-      const response = await SendBlocksToTwitter(request.data);
-      sendResponse({
-        message: "success",
-        returnTweet: response.data.twitter_url,
-      });
-    } catch {
+      const result = await SendBlocksToTwitter(request.data);
+      if (result.isSuccess)
+        sendResponse({
+          message: "success",
+          returnTweet: result.response.data.twitter_urls,
+        });
+      else {
+        sendResponse({
+          message: "error",
+          payload: result.response,
+        });
+      }
+    } catch (e) {
       sendResponse({ message: "error" });
     }
   }

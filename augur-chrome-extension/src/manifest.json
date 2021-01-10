@@ -3,12 +3,12 @@
 
   "name": "Mercury",
   "description": "Send Tweets from Roam",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "web_accessible_resources": ["*.svg"],
   "content_scripts": [
     {
       "matches": ["https://roamresearch.com/*"],
-      "js": ["js/content.js"]
+      "js": ["content.js"]
     }
   ],
   "page_action": {
@@ -22,7 +22,7 @@
   },
 
   "background": {
-    "scripts": ["js/mainEvent.js", "js/auth.js"],
+    "scripts": ["mainEvent.js", "auth.js"],
     "persistent": false
   },
 

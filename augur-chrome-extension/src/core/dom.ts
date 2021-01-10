@@ -27,7 +27,7 @@ export const waitForAddedNode = ({
   recursive,
   done,
 }: IWaitForAddedNode) => {
-  new MutationObserver(function (this: MutationObserver, mutations) {
+  new MutationObserver(function (this: MutationObserver, _mutations) {
     const el = document.querySelector(id);
 
     if (el) {

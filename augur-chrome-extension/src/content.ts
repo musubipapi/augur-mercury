@@ -1,5 +1,4 @@
 import { createMutationObserver } from "./core/dom";
-import { roamAPIQuery } from "./core/roam";
 import { initializeSettings } from "./core/settings";
 import {
   createCharCounter,
